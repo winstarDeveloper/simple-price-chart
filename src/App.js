@@ -97,54 +97,54 @@ class App extends Component {
       ],
     };
     this.nftyStockOptions = {
-        yAxis: [
-          {
-            height: "75%",
-            labels: {
-              align: "right",
-              x: -3,
-            },
-            title: {
-              text: "Nifty Index",
+      yAxis: [
+        {
+          height: "75%",
+          labels: {
+            align: "right",
+            x: -3,
+          },
+          title: {
+            text: "Nifty Index",
+          },
+        },
+        {
+          top: "75%",
+          height: "25%",
+          labels: {
+            align: "right",
+            x: -3,
+          },
+          offset: 0,
+          title: {
+            text: "MACD",
+          },
+        },
+      ],
+      series: [
+        {
+          dataSorting: { enabled: true },
+          data: this.state.nfty_time_series_data,
+          type: "candlestick",
+          name: "NFTY Stock Price",
+          id: "NFTY",
+        },
+        {
+          type: "candlestick",
+          linkedTo: "NFTY",
+          zIndex: 0,
+          lineWidth: 1,
+          dataLabels: {
+            overflow: "none",
+            crop: false,
+            y: 4,
+            style: {
+              fontSize: 9,
             },
           },
-          {
-            top: "75%",
-            height: "25%",
-            labels: {
-              align: "right",
-              x: -3,
-            },
-            offset: 0,
-            title: {
-              text: "MACD",
-            },
-          },
-        ],
-        series: [
-          {
-            dataSorting: { enabled: true },
-            data: this.state.nfty_time_series_data,
-            type: "candlestick",
-            name: "NFTY Stock Price",
-            id: "NFTY",
-          },
-          {
-            type: "candlestick",
-            linkedTo: "NFTY",
-            zIndex: 0,
-            lineWidth: 1,
-            dataLabels: {
-              overflow: "none",
-              crop: false,
-              y: 4,
-              style: {
-                fontSize: 9,
-              },
-            },
-          },
-        ],
-      };
+        },
+      ],
+    };
   };
 
   sendHttpRequest = (method, url, data) => {
@@ -170,26 +170,29 @@ class App extends Component {
   formatApiData = (timeSeriesUrl, symbol) => {
     this.sendHttpRequest("GET", timeSeriesUrl).then((responseData) => {
       var result = [];
-      setTimeout(function() {}, 100);
+      setTimeout(function () {}, 100);
       // {1. open: "85.1800", 2. high: "85.4500", 3. low: "85.1500", 4. close: "85.2400", 5. volume: "405414"}
       if (responseData !== null || responseData === undefined || isError) {
-        result = Object.values(responseData["Monthly Time Series"]);
+        try {
+          result = Object.values(responseData["Monthly Time Series"]);
 
-        result = result.map((i) => {
-          return [
-            i["5. volume"] * 1,
-            i["1. open"] * 1,
-            i["2. high"] * 1,
-            i["3. low"] * 1,
-            i["4. close"] * 1,
-          ];
-        });
+          result = result.map((i) => {
+            return [
+              i["5. volume"] * 1,
+              i["1. open"] * 1,
+              i["2. high"] * 1,
+              i["3. low"] * 1,
+              i["4. close"] * 1,
+            ];
+          });
+        } catch (error) {
+          window.location.reload(false);
+        }
         console.log(result);
 
-        if(symbol !== "NFTY")
+        if (symbol !== "NFTY")
           this.setState({ time_series_data: result, searchData: [] });
-        else
-          this.setState({ nfty_time_series_data: result, searchData: [] });
+        else this.setState({ nfty_time_series_data: result, searchData: [] });
         this.updateStockOptions();
         showResults = true;
         this.forceUpdate();
@@ -203,8 +206,13 @@ class App extends Component {
   handleStockClick = (e) => {
     this.setState({ symbol: e.target.innerHTML });
     let symbol = e.target.innerHTML;
-    let tsUrl = timeSeriesUrl +
-      this.state.time + "&symbol=" + symbol + "&apikey=" + apikey;
+    let tsUrl =
+      timeSeriesUrl +
+      this.state.time +
+      "&symbol=" +
+      symbol +
+      "&apikey=" +
+      apikey;
     console.log(tsUrl);
     this.formatApiData(tsUrl, symbol);
     let tssUrl =
@@ -219,15 +227,19 @@ class App extends Component {
 
   getData = (url) => {
     this.sendHttpRequest("GET", url).then((responseData) => {
-      this.setState({
-        searchData: responseData.bestMatches.map((i) => {
-          return (
-            <li class="list-group-item" onClick={this.handleStockClick}>
-              {i["1. symbol"]}
-            </li>
-          );
-        }),
-      });
+      try {
+        this.setState({
+          searchData: responseData.bestMatches.map((i) => {
+            return (
+              <li class="list-group-item" onClick={this.handleStockClick}>
+                {i["1. symbol"]}
+              </li>
+            );
+          }),
+        });
+      } catch (error) {
+        window.location.reload(false);
+      }
     });
   };
 
@@ -245,8 +257,8 @@ class App extends Component {
   };
 
   checkSearchBar = () => {
-    if(this.searchData === []) showResults = false;
-  }
+    if (this.searchData === []) showResults = false;
+  };
 
   render() {
     return (
@@ -268,7 +280,7 @@ class App extends Component {
             {this.state.searchData}
           </ul>
         </div>
-        {isError ? (<h4>Some Error occurred try again</h4>) : null}
+        {isError ? <h4>Some Error occurred try again</h4> : null}
         {this.checkSearchBar()}
         {showResults ? (
           <StockChart options={this.stockOptions} highcharts={Highcharts} />
