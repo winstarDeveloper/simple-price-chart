@@ -186,7 +186,8 @@ class App extends Component {
             ];
           });
         } catch (error) {
-          window.location.reload(false);
+          //window.location.reload(false);
+          console.log("Error occured, refresh page or try Again")
         }
         console.log(result);
 
@@ -238,7 +239,8 @@ class App extends Component {
           }),
         });
       } catch (error) {
-        window.location.reload(false);
+        //window.location.reload(false);
+        console.log("Error occured, refresh page or try Again")
       }
     });
   };
