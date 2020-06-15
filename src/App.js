@@ -1,7 +1,7 @@
-import React, { Component } from 'react';
-import { InputGroup, FormControl } from 'react-bootstrap';
-import './App.css';
-import './bootstrap.min.css';
+import React, { Component } from "react";
+import { InputGroup, FormControl } from "react-bootstrap";
+import "./App.css";
+import "./bootstrap.min.css";
 import Highcharts from "highcharts/highstock";
 import StockChart from "./Stock.jsx";
 
@@ -25,20 +25,26 @@ function App() {
 // function= TIME_SERIES_INTRADAY,TIME_SERIES_DAILY,TIME_SERIES_WEEKLY,TIME_SERIES_MONTHLY
 // interval= 1min, 5min, 15min, 30min, 60min
 //
-let searchUrl = "https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=";
+let searchUrl =
+  "https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=";
 let timeSeriesUrl = "https://www.alphavantage.co/query?function=";
-let apikey = "YE7H8OIMD1WOW1JN"; 
+let apikey = "N8NJNC5BFIBHNPWK"; //"YE7H8OIMD1WOW1JN";
+let showResults = false;
+let searchKey = "";
+let isError = "";
 
 class App extends Component {
   state = {
-      searchData: [],
-      symbol: "",
-      time: "TIME_SERIES_INTRADAY",
-      interval: 5,
-      time_series_data: []
+    searchData: [],
+    symbol: "",
+    time: "TIME_SERIES_MONTHLY",
+    interval: 5,
+    time_series_data: [],
+    nfty_time_series_data: [],
   };
 
   stockOptions = {};
+  nftyStockOptions = {};
 
   updateStockOptions = () => {
     this.stockOptions = {
@@ -63,13 +69,14 @@ class App extends Component {
           offset: 0,
           title: {
             text: "MACD",
-          }
-        }
+          },
+        },
       ],
       series: [
         {
+          dataSorting: { enabled: true },
           data: this.state.time_series_data,
-          type: "ohlc",
+          type: "candlestick",
           name: this.state.symbol + " Stock Price",
           id: this.state.symbol,
         },
@@ -86,101 +93,192 @@ class App extends Component {
               fontSize: 9,
             },
           },
-        }
+        },
       ],
-    }
+    };
+    this.nftyStockOptions = {
+        yAxis: [
+          {
+            height: "75%",
+            labels: {
+              align: "right",
+              x: -3,
+            },
+            title: {
+              text: "Nifty Index",
+            },
+          },
+          {
+            top: "75%",
+            height: "25%",
+            labels: {
+              align: "right",
+              x: -3,
+            },
+            offset: 0,
+            title: {
+              text: "MACD",
+            },
+          },
+        ],
+        series: [
+          {
+            dataSorting: { enabled: true },
+            data: this.state.nfty_time_series_data,
+            type: "candlestick",
+            name: "NFTY Stock Price",
+            id: "NFTY",
+          },
+          {
+            type: "candlestick",
+            linkedTo: "NFTY",
+            zIndex: 0,
+            lineWidth: 1,
+            dataLabels: {
+              overflow: "none",
+              crop: false,
+              y: 4,
+              style: {
+                fontSize: 9,
+              },
+            },
+          },
+        ],
+      };
   };
 
   sendHttpRequest = (method, url, data) => {
     return fetch(url, {
       method: method,
       body: JSON.stringify(data),
-      headers: data ? { 'Content-Type': 'application/json' } : {}
-    }).then(response => {
+      headers: data ? { "Content-Type": "application/json" } : {},
+    }).then((response) => {
       if (response.status >= 400) {
         // !response.ok
-        return response.json().then(errResData => {
-          const error = new Error('Something went wrong!');
+        isError = true;
+        return response.json().then((errResData) => {
+          const error = new Error("Something went wrong!");
           error.data = errResData;
           throw error;
         });
       }
+      isError = false;
       return response.json();
     });
   };
-  
-  
-  handleStockClick = (e) => {
-    this.setState({symbol: e.target.innerHTML});
-    let symbol = e.target.innerHTML;
-    timeSeriesUrl += this.state.time + "&symbol=" + symbol + "&interval=" + this.state.interval + "min&apikey=" + apikey;
-    console.log(timeSeriesUrl);
-    this.sendHttpRequest('GET', timeSeriesUrl).then(responseData => {
-      // temp = responseData;
-      // this.setState({time_series_data: responseData["Time Series (5min)"], searchData: []});
-      var result = [];
-      // var keys = Object.keys(responseData["Time Series (5min)"]);
-      // keys.forEach(function(key){
-      //   result.push(responseData["Time Series (5min)"][key]);
-      // });
-      
-      // {1. open: "85.1800", 2. high: "85.4500", 3. low: "85.1500", 4. close: "85.2400", 5. volume: "405414"}
-      
-      result = Object.values(responseData["Time Series (5min)"]);
-      
-      result = result.map(i => {
-        return ([i["5. volume"]*1, i["1. open"]*1, i["2. high"]*1, i["3. low"]*1, i["4. close"]*1])
-      });
-      console.log(result);
 
-      this.setState({time_series_data: result, searchData: []});
-      this.updateStockOptions();
-      this.forceUpdate();
+  formatApiData = (timeSeriesUrl, symbol) => {
+    this.sendHttpRequest("GET", timeSeriesUrl).then((responseData) => {
+      var result = [];
+      setTimeout(function() {}, 100);
+      // {1. open: "85.1800", 2. high: "85.4500", 3. low: "85.1500", 4. close: "85.2400", 5. volume: "405414"}
+      if (responseData !== null || responseData === undefined || isError) {
+        result = Object.values(responseData["Monthly Time Series"]);
+
+        result = result.map((i) => {
+          return [
+            i["5. volume"] * 1,
+            i["1. open"] * 1,
+            i["2. high"] * 1,
+            i["3. low"] * 1,
+            i["4. close"] * 1,
+          ];
+        });
+        console.log(result);
+
+        if(symbol !== "NFTY")
+          this.setState({ time_series_data: result, searchData: [] });
+        else
+          this.setState({ nfty_time_series_data: result, searchData: [] });
+        this.updateStockOptions();
+        showResults = true;
+        this.forceUpdate();
+      }
     });
-    e.target.value = "";
-    document.getElementById("searchBar").value = "";
+    //document.getElementById("searchBar").value = "";
     //setTimeout(function() {}, 100);
     // console.log(temp);
-  }
+  };
+
+  handleStockClick = (e) => {
+    this.setState({ symbol: e.target.innerHTML });
+    let symbol = e.target.innerHTML;
+    let tsUrl = timeSeriesUrl +
+      this.state.time + "&symbol=" + symbol + "&apikey=" + apikey;
+    console.log(tsUrl);
+    this.formatApiData(tsUrl, symbol);
+    let tssUrl =
+      "https://www.alphavantage.co/query?function=" +
+      this.state.time +
+      "&symbol=NFTY&apikey=" +
+      apikey;
+    console.log(tssUrl);
+    this.formatApiData(tssUrl, "NFTY");
+    e.target.value = "";
+  };
 
   getData = (url) => {
-    this.sendHttpRequest('GET', url).then(responseData => {
-        this.setState({searchData: responseData.bestMatches.map(i => {
-          return (<li class="list-group-item" onClick={this.handleStockClick }>{i["1. symbol"]}</li>);
-        })});
-    })
+    this.sendHttpRequest("GET", url).then((responseData) => {
+      this.setState({
+        searchData: responseData.bestMatches.map((i) => {
+          return (
+            <li class="list-group-item" onClick={this.handleStockClick}>
+              {i["1. symbol"]}
+            </li>
+          );
+        }),
+      });
+    });
   };
 
   handleSearchBarChange = (e) => {
-      //this.setState({name: e.target.value});
-      let searchUrlComplete = searchUrl + e.target.value + "&apikey=" + apikey;
-      //console.log(this.getData(searchUrlComplete));
-      if(e.target.value === ""){
-        this.setState({ searchData: []});
-      }else {
-        this.getData(searchUrlComplete);
-      }
+    //this.setState({name: e.target.value});
+    searchKey = e.target.value;
+    let searchUrlComplete = searchUrl + searchKey + "&apikey=" + apikey;
+    //console.log(this.getData(searchUrlComplete));
+    if (e.target.value === "") {
+      this.setState({ searchData: [] });
+    } else {
+      this.getData(searchUrlComplete);
+    }
+    showResults = false;
+  };
+
+  checkSearchBar = () => {
+    if(this.searchData === []) showResults = false;
   }
 
-  render() { 
-      return (
-          <div className="app-content">
-            <h1> Simple Price Chart </h1>
-            
-            <div class="container search-bar">
-              <InputGroup size="lg">
-                <FormControl id="searchBar" onChange={this.handleSearchBarChange} placeholder="Enter Stock name" aria-label="Large" aria-describedby="inputGroup-sizing-sm" />
-              </InputGroup>
-              <br/>
-              <ul class="list-group" id="myList">
-                { this.state.searchData }
-              </ul>
-            </div>
-              
-            <StockChart options={this.stockOptions} highcharts={Highcharts} /> 
-  
-          </div>
-      );
+  render() {
+    return (
+      <div className="app-content">
+        <h1> Simple Price Chart </h1>
+
+        <div class="container search-bar">
+          <InputGroup size="lg">
+            <FormControl
+              id="searchBar"
+              onChange={this.handleSearchBarChange}
+              placeholder="Enter Stock name"
+              aria-label="Large"
+              aria-describedby="inputGroup-sizing-sm"
+            />
+          </InputGroup>
+          <br />
+          <ul class="list-group" id="myList">
+            {this.state.searchData}
+          </ul>
+        </div>
+        {isError ? (<h4>Some Error occurred try again</h4>) : null}
+        {this.checkSearchBar()}
+        {showResults ? (
+          <StockChart options={this.stockOptions} highcharts={Highcharts} />
+        ) : null}
+        <br />
+        {showResults ? (
+          <StockChart options={this.nftyStockOptions} highcharts={Highcharts} />
+        ) : null}
+      </div>
+    );
   }
 }
 
